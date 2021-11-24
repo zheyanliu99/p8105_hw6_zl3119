@@ -9,6 +9,10 @@ output: html_document
 library(tidyverse)
 library(modelr)
 library(mgcv)
+library(fastDummies)
+library(glmnet)
+
+set.seed(777)
 
 knitr::opts_chunk$set(
   fig.width = 6,
@@ -35,9 +39,9 @@ In this problem, you will analyze data gathered to understand the effects of sev
 
 ## Load and clean the data for regression analysis
 
-```{r cars}
+```{r read and clean data}
 birthweight_df = 
-  read_csv('data/birthweight.csv') %>% 
+  read_csv('data/birthweight.csv', show_col_types = FALSE) %>% 
   janitor::clean_names()
 
 # No missing value
@@ -52,41 +56,57 @@ birthweight_df =
          malform = as.factor(malform),
          # rename as mother_race
          mother_race = as.factor(mrace),
-         smoken = as.factor(smoken)) %>% 
-  select(-frace, -mrace)
+         if_smoke = as.factor(ifelse(smoken > 0, 1, 0))) %>% 
+  select(-frace, -mrace, -smoken)
 
-birthweight_df %>% 
+# show the cleaned data
+head(birthweight_df) %>% 
   knitr::kable()
 ```
+
+There isn't missing value in the dataframe. Change 'babysex', 'father_race', 'malform', 'mother_race' into factor. In addition, change smoken into an indicator variable 'if_smoke' because the average number of cigarettes smoked per day during pregnancy does not have linear association with the weight gain of the baby.
+
 
 ## Build model
 
 Propose a regression model for birthweight. This model may be based on a hypothesized structure for the factors that underly birthweight, on a data-driven model-building process, or a combination of the two. Describe your modeling process and show a plot of model residuals against fitted values.
 
-
+Use Lasso to select variables
 ```{r pressure, echo=FALSE}
-library(glmnet)
+
+# dummy variables
+df_dummy = dummy_cols(birthweight_df, 
+                      select_columns = c('babysex', 'father_race', 'malform', 'mother_race', 'if_smoke'),
+                      remove_selected_columns = TRUE,
+                      remove_first_dummy = TRUE)
+
 
 #perform k-fold cross-validation to find optimal lambda value
 x = data.matrix(
-      birthweight_df %>% 
+      df_dummy %>% 
       select(-bwt)
 )
 
 y = data.matrix(
-      birthweight_df %>% 
+      df_dummy %>% 
       pull(bwt)
 )
 
-cv_model <- cv.glmnet(x, y, alpha = 1)
+cv_model = cv.glmnet(x, y, alpha = 1)
 
 #find optimal lambda value that minimizes test MSE
-best_lambda <- cv_model$lambda.min
-best_lambda
+best_lambda = cv_model$lambda.1se
 
 
 #produce plot of test MSE by lambda value
 plot(cv_model) 
+
+best_model = glmnet(x, y, alpha = 1, lambda = best_lambda)
+coef.apprx = coef(best_model, s = 0.5, exact = FALSE)
+coef(best_model) 
+
+
+# coef.apprx[which(coef.apprx != 0)]
 ```
 
 Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
