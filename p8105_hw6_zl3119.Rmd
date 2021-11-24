@@ -29,22 +29,64 @@ scale_fill_discrete = scale_fill_viridis_d
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-## R Markdown
+# Problem 1
 
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+In this problem, you will analyze data gathered to understand the effects of several variables on a child’s birthweight. This dataset, available here, consists of roughly 4000 children and includes the following variables:
 
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+## Load and clean the data for regression analysis
 
 ```{r cars}
-summary(cars)
+birthweight_df = 
+  read_csv('data/birthweight.csv') %>% 
+  janitor::clean_names()
+
+# No missing value
+colSums(is.na(birthweight_df))
+
+birthweight_df = 
+  birthweight_df %>% 
+  # change some numeric variables to factors
+  mutate(babysex = as.factor(babysex),
+         # rename as father_race
+         father_race = as.factor(frace),
+         malform = as.factor(malform),
+         # rename as mother_race
+         mother_race = as.factor(mrace),
+         smoken = as.factor(smoken)) %>% 
+  select(-frace, -mrace)
+
+birthweight_df %>% 
+  knitr::kable()
 ```
 
-## Including Plots
+## Build model
 
-You can also embed plots, for example:
+Propose a regression model for birthweight. This model may be based on a hypothesized structure for the factors that underly birthweight, on a data-driven model-building process, or a combination of the two. Describe your modeling process and show a plot of model residuals against fitted values.
+
 
 ```{r pressure, echo=FALSE}
-plot(pressure)
+library(glmnet)
+
+#perform k-fold cross-validation to find optimal lambda value
+x = data.matrix(
+      birthweight_df %>% 
+      select(-bwt)
+)
+
+y = data.matrix(
+      birthweight_df %>% 
+      pull(bwt)
+)
+
+cv_model <- cv.glmnet(x, y, alpha = 1)
+
+#find optimal lambda value that minimizes test MSE
+best_lambda <- cv_model$lambda.min
+best_lambda
+
+
+#produce plot of test MSE by lambda value
+plot(cv_model) 
 ```
 
 Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
