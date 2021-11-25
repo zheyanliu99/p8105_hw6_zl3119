@@ -71,7 +71,11 @@ There isn't missing value in the dataframe. Change 'babysex', 'father_race', 'ma
 
 Propose a regression model for birthweight. This model may be based on a hypothesized structure for the factors that underly birthweight, on a data-driven model-building process, or a combination of the two. Describe your modeling process and show a plot of model residuals against fitted values.
 
-Use Lasso to select variables
+There are many variables in the dataframe. We should avoid selecting too much variables to avoid multicollinearity(overfitting). Therefore, I use Lasso to select variables. Lasso adds L1 regularization in the loss function and forces the coefficients of some variables towards zero.
+
+
+First, I dummied all category variables and used 5-fold cross validation to choose the best lambda (L1 regularization term). I plot the MSE when lambda is choosing different values.
+
 ```{r pressure, echo=FALSE}
 
 # dummy variables
@@ -92,21 +96,138 @@ y = data.matrix(
       pull(bwt)
 )
 
-cv_model = cv.glmnet(x, y, alpha = 1)
-
-#find optimal lambda value that minimizes test MSE
-best_lambda = cv_model$lambda.1se
-
-
-#produce plot of test MSE by lambda value
+cv_model = cv.glmnet(x, y, alpha = 1, nfolds = 5)
 plot(cv_model) 
 
-best_model = glmnet(x, y, alpha = 1, lambda = best_lambda)
-coef.apprx = coef(best_model, s = 0.5, exact = FALSE)
-coef(best_model) 
 
+#find the largest value of λλ such that error is within 1 standard error of the cross-validated errors for lambda.min
+best_lambda = cv_model$lambda.1se
 
 # coef.apprx[which(coef.apprx != 0)]
 ```
 
+The best lambda is `r best_lambda`
+
+
+Then I used this lambda to build a Lasso regression model (for selection of variables). The model coefficients are listed below
+
+```{r}
+lasso_model = glmnet(x, y, alpha = 1, lambda = best_lambda)
+coef.apprx = coef(lasso_model, s = 0.5, exact = FALSE)
+# coefficients
+coef(lasso_model) 
+```
+
 Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+
+After Lasso selection, there are `r length(coef.apprx[which(coef.apprx != 0)])` variables in the model(including dummy variables and intercept). 
+
+Then, I used the selected variables to fit a regression model.
+
+```{r, message=FALSE, warning=FALSE}
+adf = as.data.frame(as.matrix(coef(lasso_model)))
+adf$variable = row.names(adf)
+
+selected_cols = 
+  as.tibble(adf)  %>% 
+  filter(s0 != 0, variable != "(Intercept)") %>% 
+  pull(variable)
+
+x = data.matrix(
+      df_dummy %>% 
+      select(selected_cols)
+)
+
+y = data.matrix(
+      df_dummy %>% 
+      pull(bwt)
+)
+
+linear_model1 = lm(y ~ x)
+coef(linear_model1)
+```
+
+In th regression model, Birth weight is positively related to **bhead**(baby’s head circumference at birth), **blength** (baby’s length at birth), **delwt**(mother’s weight at delivery), **fincome**(family monthly income) and **mheigth** (mother’s height). And is negatively related with **if_smoke**(if mother smoked during pregnancy) and some parents races when compared with white.
+
+
+
+Finally, I calculated residuals and make a plot of model residuals against fitted values
+
+
+```{r}
+birthweight_df %>% 
+  modelr::add_residuals(linear_model1) %>% 
+  modelr::add_predictions(linear_model1) %>% 
+  ggplot(aes(x = pred, y = resid)) +
+  geom_point(alpha = 0.6)
+
+```
+
+Despite some large outliers when the predication is small, the residual is random and shows no pattern when predicted value increases.
+
+## Compare my models to two others
+
+* One using length at birth and gestational age as predictors (main effects only)
+* One using head circumference, length, sex, and all interactions (including the three-way interaction) between these
+
+
+Build these two models and do cross validation
+
+```{r}
+linear_model2 = lm(bwt ~ blength + gaweeks, data = birthweight_df)
+linear_model3 = lm(bwt ~ bhead + blength + babysex + bhead*blength + bhead*babysex + blength*babysex + bhead*blength*babysex, data = birthweight_df)
+
+# Create CV dataframe
+cv_df = 
+  crossv_mc(df_dummy, 100) %>% 
+  mutate(
+    train = map(train, as_tibble),
+    test = map(test, as_tibble)
+  )
+
+# Cross validation and note the rmse on each test set
+cv_df = 
+  cv_df %>% 
+  mutate(
+    linear_model1 = map(train, ~lm(bwt ~ bhead + blength + delwt + fincome + gaweeks + mheight + wtgain
+                                   + father_race_4 + mother_race_2 + mother_race_4 + if_smoke_1, data = .x)),
+    linear_model2 = map(train, ~lm(bwt ~ blength + gaweeks, data = .x)),
+    linear_model3 = map(train, ~lm(bwt ~ bhead + blength + babysex_2 + bhead*blength + bhead*babysex_2 + blength*babysex_2 + bhead*blength*babysex_2, data = .x))) %>% 
+  mutate(
+    rmse_model1 = map2_dbl(linear_model1, test, ~rmse(model = .x, data = .y)),
+    rmse_model2 = map2_dbl(linear_model2, test, ~rmse(model = .x, data = .y)),
+    rmse_model3 = map2_dbl(linear_model3, test, ~rmse(model = .x, data = .y)))
+
+
+```
+
+Look at the output
+
+```{r}
+cv_df %>% 
+  select(starts_with('rmse')) %>% 
+  pivot_longer(
+    rmse_model1:rmse_model3,
+    names_to = 'model',
+    values_to = 'rmse', 
+    names_prefix = 'rmse_'
+  ) %>% 
+  ggplot(aes(x = model, y = rmse)) +
+  geom_boxplot()
+```
+
+Based on cross validation, the prediction error of model 1 is lowest and model2 is highest. Note that model 1 can still be improved if L1 regularzation is included.
+
+
+
+# Problem 2
+
+
+
+
+
+
+
+
+
+
