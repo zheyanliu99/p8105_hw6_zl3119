@@ -449,13 +449,107 @@ y = data.matrix(
 )
 
 linear_model1 = lm(y ~ x)
-coef(linear_model1)</code></pre>
-<pre><code>##    (Intercept)         xbhead       xblength         xdelwt       xfincome 
-##  -6052.2486852    129.2810998     75.2434516      1.4395016      0.3031029 
-##       xgaweeks       xmheight        xwtgain xfather_race_4 xmother_race_2 
-##     11.6016821      6.5541435      2.7152248    -47.6012987   -124.6878478 
-## xmother_race_4    xif_smoke_1 
-##    -43.8161256    -57.2710806</code></pre>
+
+linear_model1 %&gt;% 
+  broom::tidy() %&gt;% 
+  knitr::kable()</code></pre>
+<table>
+<thead>
+<tr class="header">
+<th align="left">term</th>
+<th align="right">estimate</th>
+<th align="right">std.error</th>
+<th align="right">statistic</th>
+<th align="right">p.value</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td align="left">(Intercept)</td>
+<td align="right">-6052.2486852</td>
+<td align="right">137.4366691</td>
+<td align="right">-44.036637</td>
+<td align="right">0.0000000</td>
+</tr>
+<tr class="even">
+<td align="left">xbhead</td>
+<td align="right">129.2810998</td>
+<td align="right">3.4229688</td>
+<td align="right">37.768706</td>
+<td align="right">0.0000000</td>
+</tr>
+<tr class="odd">
+<td align="left">xblength</td>
+<td align="right">75.2434516</td>
+<td align="right">2.0265017</td>
+<td align="right">37.129725</td>
+<td align="right">0.0000000</td>
+</tr>
+<tr class="even">
+<td align="left">xdelwt</td>
+<td align="right">1.4395016</td>
+<td align="right">0.2320782</td>
+<td align="right">6.202657</td>
+<td align="right">0.0000000</td>
+</tr>
+<tr class="odd">
+<td align="left">xfincome</td>
+<td align="right">0.3031029</td>
+<td align="right">0.1755229</td>
+<td align="right">1.726857</td>
+<td align="right">0.0842647</td>
+</tr>
+<tr class="even">
+<td align="left">xgaweeks</td>
+<td align="right">11.6016821</td>
+<td align="right">1.4575680</td>
+<td align="right">7.959616</td>
+<td align="right">0.0000000</td>
+</tr>
+<tr class="odd">
+<td align="left">xmheight</td>
+<td align="right">6.5541435</td>
+<td align="right">1.7925239</td>
+<td align="right">3.656377</td>
+<td align="right">0.0002588</td>
+</tr>
+<tr class="even">
+<td align="left">xwtgain</td>
+<td align="right">2.7152248</td>
+<td align="right">0.4295139</td>
+<td align="right">6.321622</td>
+<td align="right">0.0000000</td>
+</tr>
+<tr class="odd">
+<td align="left">xfather_race_4</td>
+<td align="right">-47.6012987</td>
+<td align="right">42.5958738</td>
+<td align="right">-1.117510</td>
+<td align="right">0.2638385</td>
+</tr>
+<tr class="even">
+<td align="left">xmother_race_2</td>
+<td align="right">-124.6878478</td>
+<td align="right">9.6405459</td>
+<td align="right">-12.933692</td>
+<td align="right">0.0000000</td>
+</tr>
+<tr class="odd">
+<td align="left">xmother_race_4</td>
+<td align="right">-43.8161256</td>
+<td align="right">43.3529658</td>
+<td align="right">-1.010684</td>
+<td align="right">0.3122244</td>
+</tr>
+<tr class="even">
+<td align="left">xif_smoke_1</td>
+<td align="right">-57.2710806</td>
+<td align="right">8.5839025</td>
+<td align="right">-6.671917</td>
+<td align="right">0.0000000</td>
+</tr>
+</tbody>
+</table>
 <p>In th regression model, Birth weight is positively related to <strong>bhead</strong>(baby’s head circumference at birth), <strong>blength</strong> (baby’s length at birth), <strong>delwt</strong>(mother’s weight at delivery), <strong>fincome</strong>(family monthly income) and <strong>mheigth</strong> (mother’s height). And is negatively related with <strong>if_smoke</strong>(if mother smoked during pregnancy) and some parents races when compared with white.</p>
 <p>Finally, I calculated residuals and make a plot of model residuals against fitted values</p>
 <pre class="r"><code>birthweight_df %&gt;% 
@@ -513,6 +607,86 @@ cv_df =
 </div>
 <div id="problem-2" class="section level1">
 <h1>Problem 2</h1>
+<p>Read data</p>
+<pre class="r"><code>weather_df = 
+  rnoaa::meteo_pull_monitors(
+    c(&quot;USW00094728&quot;),
+    var = c(&quot;PRCP&quot;, &quot;TMIN&quot;, &quot;TMAX&quot;), 
+    date_min = &quot;2017-01-01&quot;,
+    date_max = &quot;2017-12-31&quot;) %&gt;%
+  mutate(
+    name = recode(id, USW00094728 = &quot;CentralPark_NY&quot;),
+    tmin = tmin / 10,
+    tmax = tmax / 10) %&gt;%
+  select(name, id, everything())</code></pre>
+<pre><code>## Registered S3 method overwritten by &#39;hoardr&#39;:
+##   method           from
+##   print.cache_info httr</code></pre>
+<pre><code>## using cached file: C:\Users\jimmy\AppData\Local/Cache/R/noaa_ghcnd/USW00094728.dly</code></pre>
+<pre><code>## date created (size, mb): 2021-10-13 19:11:51 (7.62)</code></pre>
+<pre><code>## file min/max dates: 1869-01-01 / 2021-10-31</code></pre>
+<p>Build a model with actual data, a simple linear regression with tmax as the response and tmin as the predictor</p>
+<pre class="r"><code>linear_model = lm(tmax ~ tmin, data = weather_df)
+
+# R2
+R2 = 
+  linear_model %&gt;% 
+    broom::glance() %&gt;% 
+    pull(r.squared)
+
+# log(β^0∗β^1)
+linear_model_df = 
+  linear_model %&gt;% 
+  broom::tidy()
+
+beta0 = linear_model_df %&gt;%  filter(term == &#39;(Intercept)&#39;) %&gt;%  pull(estimate)
+beta1 = linear_model_df %&gt;%  filter(term == &#39;tmin&#39;) %&gt;%  pull(estimate)
+logbeta = log(beta0 * beta1)
+
+print(R2)</code></pre>
+<pre><code>## [1] 0.9115425</code></pre>
+<pre class="r"><code>print(logbeta)</code></pre>
+<pre><code>## [1] 2.013752</code></pre>
+<p>Bootstrap 5000 samples and get each R2 and logbeta</p>
+<pre class="r"><code>weather_samples = 
+  weather_df %&gt;% 
+    modelr::bootstrap(n = 5000) %&gt;% 
+    mutate(
+      models = map(strap, ~ lm(tmax ~ tmin, data = .x)),
+      estimates = map(models, broom::tidy),
+      glance = map(models, broom::glance))
+
+
+weather_samples_info = 
+  weather_samples %&gt;% 
+    unnest(glance, estimates) %&gt;% 
+    select(.id, term, estimate, r.squared) %&gt;% 
+    # bracket can cause error
+    mutate(term = ifelse(term == &#39;(Intercept)&#39;, &#39;beta0&#39;, &#39;beta1&#39;)) %&gt;% 
+    pivot_wider(names_from = term, 
+                values_from = estimate) %&gt;% 
+    mutate(
+      logbeta = log(beta0 * beta1)
+    )</code></pre>
+<p>Identify the 2.5% and 97.5% quantiles to provide a 95% confidence interval</p>
+<pre class="r"><code>get_quantiles = function(df, col, percent){
+  print(paste(col, paste(100*(1-2*percent),&#39;%&#39;,sep = &#39;&#39;), &#39;CI&#39;))
+  quantile(df %&gt;% pull(col), c(percent, 1-percent))
+}
+
+sign_level = 0.05
+
+# R2
+get_quantiles(weather_samples_info, &#39;r.squared&#39;, sign_level/2)</code></pre>
+<pre><code>## [1] &quot;r.squared 95% CI&quot;</code></pre>
+<pre><code>##      2.5%     97.5% 
+## 0.8938161 0.9274290</code></pre>
+<pre class="r"><code># log(β^0∗β^1)
+get_quantiles(weather_samples_info, &#39;logbeta&#39;, sign_level/2)</code></pre>
+<pre><code>## [1] &quot;logbeta 95% CI&quot;</code></pre>
+<pre><code>##     2.5%    97.5% 
+## 1.965749 2.057587</code></pre>
+<p>The actual R2 (0.9115425) and log(β<sup>0∗β</sup>1) (2.0137519) are both in the 95% CI</p>
 </div>
 
 

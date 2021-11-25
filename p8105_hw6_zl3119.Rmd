@@ -144,6 +144,7 @@ y = data.matrix(
 )
 
 linear_model1 = lm(y ~ x)
+
 linear_model1 %>% 
   broom::tidy() %>% 
   knitr::kable()
@@ -226,7 +227,7 @@ Based on cross validation, the prediction error of model 1 is lowest and model2 
 
 Read data
 
-```{r}
+```{r, warning=FALSE}
 weather_df = 
   rnoaa::meteo_pull_monitors(
     c("USW00094728"),
@@ -239,6 +240,85 @@ weather_df =
     tmax = tmax / 10) %>%
   select(name, id, everything())
 ```
+
+Build a model with actual data, a simple linear regression with tmax as the response and tmin as the predictor
+
+```{r}
+linear_model = lm(tmax ~ tmin, data = weather_df)
+
+# R2
+R2 = 
+  linear_model %>% 
+    broom::glance() %>% 
+    pull(r.squared)
+
+# log(β^0∗β^1)
+linear_model_df = 
+  linear_model %>% 
+  broom::tidy()
+
+beta0 = linear_model_df %>%  filter(term == '(Intercept)') %>%  pull(estimate)
+beta1 = linear_model_df %>%  filter(term == 'tmin') %>%  pull(estimate)
+logbeta = log(beta0 * beta1)
+
+print(R2)
+print(logbeta)
+  
+```
+
+Bootstrap 5000 samples and get each R2 and logbeta
+
+```{r, warning=FALSE}
+weather_samples = 
+  weather_df %>% 
+    modelr::bootstrap(n = 5000) %>% 
+    mutate(
+      models = map(strap, ~ lm(tmax ~ tmin, data = .x)),
+      estimates = map(models, broom::tidy),
+      glance = map(models, broom::glance))
+
+
+weather_samples_info = 
+  weather_samples %>% 
+    unnest(glance, estimates) %>% 
+    select(.id, term, estimate, r.squared) %>% 
+    # bracket can cause error
+    mutate(term = ifelse(term == '(Intercept)', 'beta0', 'beta1')) %>% 
+    pivot_wider(names_from = term, 
+                values_from = estimate) %>% 
+    mutate(
+      logbeta = log(beta0 * beta1)
+    )
+
+```
+ 
+Identify the 2.5% and 97.5% quantiles to provide a 95% confidence interval
+
+```{r}
+get_quantiles = function(df, col, percent){
+  print(paste(col, paste(100*(1-2*percent),'%',sep = ''), 'CI'))
+  quantile(df %>% pull(col), c(percent, 1-percent))
+}
+
+sign_level = 0.05
+
+# R2
+get_quantiles(weather_samples_info, 'r.squared', sign_level/2)
+
+
+# log(β^0∗β^1)
+get_quantiles(weather_samples_info, 'logbeta', sign_level/2)
+
+
+```
+
+
+The actual R2 (`r R2`) and log(β^0∗β^1) (`r logbeta`) are both in the 95% CI
+
+
+
+
+
 
 
 
