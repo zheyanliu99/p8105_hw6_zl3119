@@ -144,7 +144,9 @@ y = data.matrix(
 )
 
 linear_model1 = lm(y ~ x)
-coef(linear_model1)
+linear_model1 %>% 
+  broom::tidy() %>% 
+  knitr::kable()
 ```
 
 In th regression model, Birth weight is positively related to **bhead**(baby’s head circumference at birth), **blength** (baby’s length at birth), **delwt**(mother’s weight at delivery), **fincome**(family monthly income) and **mheigth** (mother’s height). And is negatively related with **if_smoke**(if mother smoked during pregnancy) and some parents races when compared with white.
@@ -222,6 +224,21 @@ Based on cross validation, the prediction error of model 1 is lowest and model2 
 
 # Problem 2
 
+Read data
+
+```{r}
+weather_df = 
+  rnoaa::meteo_pull_monitors(
+    c("USW00094728"),
+    var = c("PRCP", "TMIN", "TMAX"), 
+    date_min = "2017-01-01",
+    date_max = "2017-12-31") %>%
+  mutate(
+    name = recode(id, USW00094728 = "CentralPark_NY"),
+    tmin = tmin / 10,
+    tmax = tmax / 10) %>%
+  select(name, id, everything())
+```
 
 
 
